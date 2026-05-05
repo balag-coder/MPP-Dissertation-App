@@ -1,28 +1,30 @@
 # ==============================================================================
-# DIGITAL FISCALISM: THE "FILING DAY" SIMULATOR (MOBILE-OPTIMIZED)
+# DECODING DIGITAL FISCALISM: THE POLICY SIMULATOR
 # Author: Balaji K., MPP, IIT Tirupati
-# Format: Narrative Policy Simulator (Scrollytelling & Geospatial)
+# Format: Interactive Econometric Narrative
 # ==============================================================================
 
 import streamlit as st
 import plotly.graph_objects as go
-import plotly.express as px
+import numpy as np
 import pandas as pd
 import time
 
-# --- 1. PAGE CONFIGURATION & MOBILE-FIRST CSS ---
-st.set_page_config(page_title="Digital Fiscalism Simulator", layout="centered", initial_sidebar_state="collapsed")
+# --- 1. PAGE CONFIGURATION & ELITE CSS ---
+st.set_page_config(page_title="Digital Fiscalism", layout="centered", initial_sidebar_state="collapsed")
 
 st.markdown("""
     <style>
     h1, h2, h3, p, div {font-family: 'Georgia', serif;}
     .story-text {font-size: 1.15rem; line-height: 1.7; margin-bottom: 20px; color: #2c3e50;}
+    .quote-block {border-left: 4px solid #002147; padding-left: 15px; font-style: italic; color: #555; margin-bottom: 20px;}
     .highlight {color: #d1383c; font-weight: bold;}
     .highlight-blue {color: #002147; font-weight: bold;}
-    .alert-box {background-color: #fff5f5; border-left: 5px solid #d1383c; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);}
-    .metric-box {background-color: #f8f9fa; border: 1px solid #e9ecef; padding: 15px; border-radius: 8px; text-align: center; margin-top: 10px;}
-    .stButton>button {width: 100%; height: 60px; font-size: 18px; font-weight: bold; background-color: #002147; color: white; border-radius: 8px; border: none;}
-    .stButton>button:hover {background-color: #003366; color: white; box-shadow: 0 4px 12px rgba(0,33,71,0.2);}
+    .metric-box {background-color: #f8f9fa; border: 1px solid #e9ecef; padding: 15px; border-radius: 8px; text-align: center; margin-top: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+    .metric-title {font-size: 0.9rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;}
+    .metric-value {font-size: 2rem; font-weight: bold; color: #d1383c; margin: 0;}
+    .stButton>button {width: 100%; height: 60px; font-size: 18px; font-weight: bold; background-color: #002147; color: white; border-radius: 4px; border: none;}
+    .stButton>button:hover {background-color: #003366; color: white;}
     hr {border: 0; height: 1px; background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0));}
     </style>
 """, unsafe_allow_html=True)
@@ -37,146 +39,141 @@ def next_step():
 def reset_sim():
     st.session_state.step = 1
 
-# --- 3. EXPANDED NATIONAL DATASET ---
+# --- 3. DISSERTATION DATA (STATE TAX BASES & EWBs) ---
+# Approximations for simulation purposes based on panel data means
 data = {
-    'State': [
-        'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 
-        'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 
-        'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 
-        'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar', 'Chandigarh', 
-        'Dadra and Nagar Haveli', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
-    ],
-    'Lat': [15.91, 28.21, 26.20, 25.09, 21.27, 15.29, 22.25, 29.05, 31.10, 23.61, 15.31, 10.85, 22.97, 19.75, 24.66, 25.46, 23.16, 26.15, 20.95, 31.14, 27.02, 27.53, 11.12, 18.11, 23.94, 26.84, 30.06, 22.98, 11.74, 30.73, 20.18, 28.70, 33.77, 34.15, 10.56, 11.94],
-    'Lon': [79.74, 94.72, 92.93, 85.31, 81.86, 74.12, 71.19, 76.08, 77.17, 85.27, 75.71, 76.27, 78.65, 75.71, 93.90, 91.36, 92.93, 94.56, 85.09, 75.34, 74.21, 88.51, 78.65, 79.01, 91.98, 80.94, 79.01, 87.85, 92.65, 76.77, 73.01, 77.10, 76.57, 77.57, 72.64, 79.80],
-    'Tier': [2, 3, 3, 3, 3, 1, 1, 1, 2, 3, 1, 1, 2, 1, 3, 3, 3, 3, 2, 2, 2, 3, 1, 1, 3, 2, 2, 2, 3, 1, 2, 1, 3, 3, 3, 2],
-    'Base_Readiness': [60, 30, 35, 30, 35, 80, 85, 82, 65, 28, 82, 85, 52, 85, 30, 35, 35, 35, 50, 75, 55, 45, 80, 78, 40, 55, 60, 58, 45, 90, 60, 95, 40, 35, 40, 70]
+    'State': ['Jammu and Kashmir', 'Manipur', 'Nagaland', 'Assam', 'Haryana', 'Punjab', 'Madhya Pradesh', 'Tamil Nadu', 'Maharashtra'],
+    'Taxpayer_Base': [110000, 35000, 20000, 250000, 500000, 400000, 600000, 1100000, 1600000],
+    'Monthly_EWB': [150000, 80000, 45000, 300000, 2500000, 1800000, 1500000, 8000000, 20000000]
 }
 df = pd.DataFrame(data)
+df['Log_EWB'] = np.log(df['Monthly_EWB'])
 
 # ==============================================================================
-# ROOM 1: THE SETUP
+# ROOM 1: THE PREMISE
 # ==============================================================================
 if st.session_state.step == 1:
-    st.title("The Digital Fiscalism Journey")
-    st.markdown("<div class='story-text'>Welcome to India's digital economy. The Goods and Services Tax (GST) represents a monumental shift toward digital taxation. But what happens when mandatory digital compliance meets uneven digital infrastructure?</div>", unsafe_allow_html=True)
+    st.title("Decoding Digital Fiscalism")
+    st.markdown("<div class='quote-block'>“The fiscal state's extraction is preserved. The compliance cost of that preservation lands on the taxpayer.” — <i>Balaji K.</i></div>", unsafe_allow_html=True)
     
-    st.markdown("### Step 1: Establish Your Enterprise")
-    st.markdown("<div class='story-text'>Imagine you manage a supply chain business. You rely heavily on generating e-way bills, and you must file your GSTR-3B returns by the 20th of the month.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='story-text'>India’s Goods and Services Tax (GST) is a legally mandatory, exclusively digital fiscal system. You cannot file on paper. To claim input tax credits and stay compliant, suppliers must upload their <b>GSTR-1</b> outward supply data by the <b>11th of every month</b>.</div>", unsafe_allow_html=True)
     
-    selected_state = st.selectbox("Where is your primary operational hub?", df['State'].tolist(), index=13) # Default Maharashtra
+    st.markdown("### Step 1: Select Your Jurisdiction")
+    st.markdown("<div class='story-text'>Different states have different levels of institutional capacity, proxied by formal economic activity (E-Way Bills). Let's see how your state handles a digital shock.</div>", unsafe_allow_html=True)
+    
+    selected_state = st.selectbox("Select State to Analyze:", df['State'].tolist(), index=1) # Default Manipur
     st.session_state.user_state = selected_state
     
-    business_size = st.select_slider(
-        "Select your monthly economic activity (E-Way Bill Volume):",
-        options=["Micro (< 50k)", "Medium (250k)", "Macro (1M+)"],
-        value="Medium (250k)"
-    )
-    st.session_state.business_size = business_size
-    vol_map = {"Micro (< 50k)": 40000, "Medium (250k)": 250000, "Macro (1M+)": 1500000}
-    st.session_state.ewb_vol = vol_map[business_size]
+    disruption_days = st.slider("Set Disruption Duration (Days):", min_value=1, max_value=15, value=5)
+    st.session_state.days = disruption_days
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.button("Fast Forward to the 20th ->", on_click=next_step)
+    st.button("Trigger Telecom Suspension ->", on_click=next_step)
 
 # ==============================================================================
-# ROOM 2: THE SHOCK (WITH GEOSPATIAL MAP)
+# ROOM 2: THE SCIENCE (MARGINAL EFFECT CURVE)
 # ==============================================================================
 elif st.session_state.step == 2:
-    st.title("The 20th: GST Filing Day")
-    st.markdown(f"<div class='story-text'>It is 2:00 PM. Your accountants in <b>{st.session_state.user_state}</b> are preparing to upload the final sales invoices to the GSTN portal.</div>", unsafe_allow_html=True)
-    
-    with st.spinner("Connecting to GST Network..."):
-        time.sleep(1.5)
-    
-    # Render Dynamic Map showing the disruption
     state_data = df[df['State'] == st.session_state.user_state].iloc[0]
-    fig_map = px.scatter_mapbox(
-        pd.DataFrame([state_data]), lat="Lat", lon="Lon", 
-        zoom=4, center={"lat": 22.0, "lon": 79.0},
-        mapbox_style="carto-positron", title="Live Network Status"
+    log_ewb = state_data['Log_EWB']
+    
+    st.title("Heterogeneous Administrative Resilience")
+    st.markdown(f"<div class='story-text'>A <b>{st.session_state.days}-day</b> mobile internet suspension has been ordered in <b>{st.session_state.user_state}</b> right before the GSTR-1 deadline. <br><br>Does this cause widespread late filing? According to our Two-Way Fixed Effects (TWFE) model, <b>it depends entirely on the state's economic density.</b></div>", unsafe_allow_html=True)
+    
+    # --- RENDER FIGURE 6 (MARGINAL EFFECT CURVE) ---
+    x_vals = np.linspace(8, 16, 100)
+    y_vals = 0.0144 - (0.0011 * x_vals) # Beta1 + Beta2*logEWB
+    
+    fig = go.Figure()
+    # The Zero Line
+    fig.add_trace(go.Scatter(x=[8, 16], y=[0, 0], mode='lines', line=dict(color='black', dash='dash'), name='Zero Effect'))
+    # The Marginal Effect Line
+    fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines', line=dict(color='#8b0000', width=3), name='Marginal Effect'))
+    
+    # Highlight the specific state
+    state_y = 0.0144 - (0.0011 * log_ewb)
+    fig.add_trace(go.Scatter(x=[log_ewb], y=[state_y], mode='markers+text', 
+                             marker=dict(size=15, color='#002147'),
+                             text=[f"<b>{st.session_state.user_state}</b>"], textposition="top center", name='Selected State'))
+    
+    # Threshold Line (13.09)
+    fig.add_vline(x=13.09, line_dash="dot", line_color="grey")
+    fig.add_annotation(x=13.09, y=0.01, text="Resilience Threshold (488k EWBs)", showarrow=False, textangle=-90, xshift=-15)
+    
+    fig.update_layout(
+        height=400, margin=dict(l=0, r=0, t=10, b=0),
+        xaxis_title="Log E-Way Bill Volume", yaxis_title="Marginal Effect on Late Filing",
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(family="Georgia"),
+        showlegend=False
     )
-    # Add a pulsing red disruption zone
-    fig_map.add_trace(go.Scattermapbox(
-        lat=[state_data['Lat']], lon=[state_data['Lon']],
-        mode='markers', marker=go.scattermapbox.Marker(size=40, color='red', opacity=0.4),
-        name="Disruption Zone"
-    ))
-    fig_map.update_layout(margin={"r":0,"t":40,"l":0,"b":0}, height=300)
-    st.plotly_chart(fig_map, use_container_width=True)
-
+    st.plotly_chart(fig, use_container_width=True)
+    
     st.markdown("""
-        <div class='alert-box'>
-            <h3 style='color: #d1383c; margin-top: 0;'>🚨 ADMINISTRATIVE DISRUPTION</h3>
-            <p>Under the <b>Temporary Suspension of Telecom Services Rules, 2017</b>, district authorities have ordered an immediate suspension of internet services to curb local unrest.</p>
-        </div>
+        <div style='font-size: 0.95rem; color: #555; text-align: justify;'>
+        <b>The Econometrics:</b> The marginal effect of a disruption crosses zero at log EWB = 13.09. States above this line (like Maharashtra) have the practitioner networks, ERP systems, and broadband redundancy to buffer the shock. States below this line suffer severe compliance friction.
+        </div><br>
     """, unsafe_allow_html=True)
     
-    st.markdown("<div class='story-text'>Your business is now offline. OTPs for the GST portal cannot be received. Common Service Centres (CSCs) are shut. The filing deadline is at midnight.</div>", unsafe_allow_html=True)
-    
-    st.button("Analyze Institutional Stress ->", on_click=next_step)
+    st.button("Calculate The Economic Cost ->", on_click=next_step)
 
 # ==============================================================================
-# ROOM 3: THE FALLOUT & THE COST
+# ROOM 3: THE COST OF DIGITAL FISCALISM
 # ==============================================================================
 elif st.session_state.step == 3:
-    st.title("Institutional Vulnerability Report")
-    
     state_data = df[df['State'] == st.session_state.user_state].iloc[0]
-    tier = state_data['Tier']
-    readiness = state_data['Base_Readiness']
+    log_ewb = state_data['Log_EWB']
+    tax_base = state_data['Taxpayer_Base']
+    days = st.session_state.days
     
-    # Econometrics
-    base = {1: 2.5, 2: 5.5, 3: 9.0}[tier]
-    bonus = ((readiness - 50) / 50) * 2.0 if readiness > 50 else 0
-    struct_risk = max(0.5, base - bonus)
+    # --- ECONOMETRIC MATH ---
+    # Effect per day = Beta1 + Beta2*logEWB. If negative, clamp to 0 (institutional buffering).
+    effect_per_day = max(0, 0.0144 - (0.0011 * log_ewb))
+    total_percentage_increase = effect_per_day * days
     
-    causal_shock = 2.5 
-    if st.session_state.ewb_vol < 500000:
-         causal_shock += 3.0 
-    total_risk = struct_risk + causal_shock
+    # Dynamic Financials
+    new_late_filers = int(tax_base * total_percentage_increase)
+    late_fee_per_day = 50 # Standard CGST+SGST late fee per day
+    total_fees_extracted = new_late_filers * late_fee_per_day * days
     
-    st.markdown(f"<div class='story-text'>Your probability of missing the deadline is <span class='highlight'>{total_risk:.1f}%</span>. This is not a failure of your business, but a failure of <b>administrative resilience</b>. Here is exactly why you were forced to default:</div>", unsafe_allow_html=True)
-
-    # --- THE FIXED, EXPLANATORY GRAPH ---
-    fig = go.Figure(data=[
-        go.Bar(name='Structural Baseline (State Infra)', x=['Friction Sources'], y=[struct_risk], marker_color='#002147', text=[f"Baseline: {struct_risk:.1f}%"], textposition='auto'),
-        go.Bar(name='Causal Shock (Internet Disruption)', x=['Friction Sources'], y=[causal_shock], marker_color='#d1383c', text=[f"Disruption Penalty: {causal_shock:.1f}%"], textposition='auto')
-    ])
-    fig.update_layout(
-        barmode='stack', height=350,
-        yaxis_title="Probability of Late Filing (%)",
-        yaxis=dict(range=[0, max(15, total_risk + 2)]),
-        xaxis=dict(showticklabels=False), # Hide the "useless line" text
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family="Georgia"),
-        margin=dict(l=10, r=10, t=30, b=10)
-    )
-    # Add an explanatory annotation right on the chart
-    fig.add_annotation(x=0.5, y=total_risk/2, text="Total Vulnerability", showarrow=False, font=dict(color="white", size=14), textangle=-90, xshift=-60)
-    st.plotly_chart(fig, use_container_width=True)
-
-    # --- NARRATIVE TRANSLATION OF THE GRAPH ---
-    st.markdown(f"""
-        <div style='font-size: 1rem; color: #555;'>
-        <b>Understanding this graph:</b><br>
-        <span class='highlight-blue'>■ The Blue Area:</span> Even on a peaceful day, businesses in {st.session_state.user_state} face a {struct_risk:.1f}% risk of filing late simply due to long-term digital divides and poor broadband penetration.<br>
-        <span class='highlight'>■ The Red Area:</span> Because the government disrupted the internet today, your risk skyrocketed by an additional {causal_shock:.1f}%.
-        </div>
-        <hr>
-    """, unsafe_allow_html=True)
-
-    # --- THE FINANCIAL IMPACT (THE KICKER) ---
-    st.markdown("### The Cost of Digital Fiscalism")
-    st.markdown("<div class='story-text'>Under GST law, late filing accrues a mandatory penalty (CGST + SGST) plus an 18% interest rate on the tax liability. Assume the internet disruption lasts for 5 days:</div>", unsafe_allow_html=True)
+    st.title("The Institutional Fallout")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("<div class='metric-box'><h2 style='color:#d1383c; margin:0;'>₹250+</h2><p style='margin:0; font-size:14px;'>Minimum Late Fees</p></div>", unsafe_allow_html=True)
-    with col2:
-        st.markdown("<div class='metric-box'><h2 style='color:#d1383c; margin:0;'>18%</h2><p style='margin:0; font-size:14px;'>Interest on Capital</p></div>", unsafe_allow_html=True)
+    if total_percentage_increase > 0:
+        st.markdown(f"<div class='story-text'>Because <b>{st.session_state.user_state}</b> sits below the digital resilience threshold, this {days}-day disruption actively breaks the compliance process. The state’s aggregate revenue is unaffected—the penalty regime ensures eventual payment—but the burden falls entirely on the MSMEs.</div>", unsafe_allow_html=True)
+        
+        st.markdown("### Estimated Disruption Penalty")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"<div class='metric-box'><div class='metric-title'>Involuntary Late Filers</div><p class='metric-value'>{new_late_filers:,}</p></div>", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"<div class='metric-box'><div class='metric-title'>Late Fees Extracted</div><p class='metric-value'>₹{total_fees_extracted:,.0f}</p></div>", unsafe_allow_html=True)
+            
+        st.markdown(f"""
+            <br>
+            <div style='font-size: 1rem; color: #555;'>
+            <b>The Mundlak Reality:</b> You are looking at the <i>Within-State Causal Effect</i>. The state government effectively taxes its own citizens ₹{total_fees_extracted:,.0f} for an infrastructural failure caused by the state itself, simply because these MSMEs could not file GSTR-1 on the 11th.
+            </div>
+            <hr>
+        """, unsafe_allow_html=True)
+        
+    else:
+        st.markdown(f"<div class='story-text'><b>{st.session_state.user_state}</b> sits well above the resilience threshold.</div>", unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("<div class='metric-box'><div class='metric-title'>Involuntary Late Filers</div><p class='metric-value' style='color:#002147;'>0</p></div>", unsafe_allow_html=True)
+        with col2:
+            st.markdown("<div class='metric-box'><div class='metric-title'>System Status</div><p class='metric-value' style='color:#002147; font-size:1.5rem; padding-top:10px;'>BUFFERED</p></div>", unsafe_allow_html=True)
+            
+        st.markdown("""
+            <br>
+            <div style='font-size: 1rem; color: #555;'>
+            <b>Intertemporal Substitution:</b> In high-capacity states, the institutional ecosystem (large tax firms, fixed-line broadband, automated ERPs) absorbs the shock. Revenue and compliance remain stable. The system works—but only for the digitally privileged.
+            </div>
+            <hr>
+        """, unsafe_allow_html=True)
 
-    st.markdown("<br><p style='font-style: italic; text-align: center; font-size: 0.9rem;'>The state effectively taxes the citizen for an infrastructural failure caused by the state itself.</p>", unsafe_allow_html=True)
+    st.markdown("### Policy Recommendation")
+    st.markdown("<div class='story-text'><b>Disrupt-and-Defer:</b> We do not need to change the internet shutdown laws to fix this. Section 168A of the CGST Act already allows for deadline extensions during force majeure events. An API link between telecom suspension orders and the GSTN portal could automatically waive late fees for jurisdictions in the vulnerability zone.</div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.button("↺ Start New Simulation", on_click=reset_sim)
+    st.button("↺ Restart Simulation", on_click=reset_sim)
